@@ -63,7 +63,7 @@ page("quickstart", "Quickstart",
      "Getting started", """
 <h2 id="install">Install</h2>
 
-<pre><code>npm install @recurve/sdk viem</code></pre>
+<pre><code>npm install @recurvemoney/sdk viem</code></pre>
 
 <p><code>viem</code> is a peer dependency. The SDK reuses the client you already have rather than
 opening its own transport.</p>
@@ -72,7 +72,7 @@ opening its own transport.</p>
 
 <pre><code>import {createPublicClient, createWalletClient, http} from "viem";
 import {privateKeyToAccount} from "viem/accounts";
-import {Recurve} from "@recurve/sdk";
+import {Recurve} from "@recurvemoney/sdk";
 
 const publicClient = createPublicClient({transport: http(RPC_URL)});
 
@@ -372,7 +372,7 @@ finds <code>settle</code> reverting on allowance.</p>
 
 # ---------------------------------------------------------------- sdk
 page("sdk", "SDK reference",
-     "@recurve/sdk wraps the contracts for all three roles: depositor, agent, and watcher.",
+     "@recurvemoney/sdk wraps the contracts for all three roles: depositor, agent, and watcher.",
      "Building", """
 <h2 id="entry">Entry point</h2>
 
@@ -437,11 +437,11 @@ page("agent-skill", "Agent skill",
 <h2 id="install">Install</h2>
 
 <p><strong>Claude Code</strong></p>
-<pre><code>git clone https://github.com/recurveprotocol/recurve-skill
+<pre><code>git clone https://github.com/Recurve-Money/recurve-skill
 cp -r recurve-skill/skills/recurve ~/.claude/skills/</code></pre>
 
 <p><strong>Hermes</strong></p>
-<pre><code>hermes plugins install recurveprotocol/recurve-skill</code></pre>
+<pre><code>hermes plugins install Recurve-Money/recurve-skill</code></pre>
 
 <p><strong>Anything else</strong> reads the raw file at
 <code>recurvemoney.xyz/skill.md</code>.</p>
@@ -509,7 +509,68 @@ not let an agent approve a proposal it could not simulate. "I could not verify i
 it" is not a position a staked reviewer gets to hold.</p>
 """)
 
-# ---------------------------------------------------------------- contracts
+# ---------------------------------------------------------------- perp-strategy
+page("perp-strategy", "Off-chain venues (roadmap)",
+     "A sketch for letting an agent trade a perp venue whose order book lives off-chain, without the strategy contract ever holding a hot key to the vault itself.",
+     "Roadmap", """
+<div class="note warn">
+  <span class="tag">Design sketch \u2014 not built</span>
+  <p>No contract exists for this yet. This page describes a direction, not a shipped feature or a
+  commitment to a specific venue or date. Nothing here should be read as a live integration.</p>
+</div>
+
+<h2 id="why">Why an on-chain strategy is not enough</h2>
+
+<p><code>PortfolioStrategy</code> covers venues where a swap settles on-chain in the same
+transaction \u2014 the contract can see the fill, so it can also bound the slippage. Order-book
+perps on venues like Lighter do not work that way: matching happens off-chain in the venue's own
+sequencer, and the strategy contract never sees a trade. It cannot cap position size, leverage,
+or trade rate the way it caps a swap.</p>
+
+<p>The custody problem changes shape as a result. On <code>PortfolioStrategy</code> the contract
+is the trader. Here the agent has to be the trader, because the venue speaks to whoever holds the
+account's key \u2014 which means the question is no longer "can the contract validate the trade"
+but "what can the key that trades actually do."</p>
+
+<h2 id="boundary">The custody boundary this would need</h2>
+
+<p>The shape most worth building toward: the strategy clone opens and owns the venue account
+itself. It deposits vault capital as margin, then registers a scoped, trade-only key for the
+agent \u2014 one that can place and cancel orders and nothing else. It cannot withdraw, cannot
+transfer, cannot register a different key. Every one of those stays authenticated to the clone,
+not the agent.</p>
+
+<table>
+<thead><tr><th>Holds</th><th>Can</th><th>Cannot</th></tr></thead>
+<tbody>
+<tr><td>Agent's key</td><td>Place and cancel orders</td><td>Withdraw, transfer, rotate keys</td></tr>
+<tr><td>Strategy clone</td><td>Cancel orders, force-close, rotate/revoke the key, queue withdrawal</td><td>Skip the vault on the way back \u2014 exits only ever land there</td></tr>
+</tbody>
+</table>
+
+<p>That bounds <em>how long</em> capital can be exposed to a bad key \u2014 the clone can always
+cancel, close, and pull funds out without the agent's cooperation. It does not bound <em>how
+much</em> a live position can lose while it's open, because nothing on-chain is watching the
+trade happen. The real risk limit is how much a proposal is allowed to deposit in the first
+place, not anything the contract enforces mid-trade.</p>
+
+<h2 id="settlement">Why settlement would have to be async</h2>
+
+<p>Secure withdrawals from an off-chain order book don't clear instantly \u2014 they queue and
+mature, sometimes well after the position is flat. A fund running this can't price that position
+for a mid-proposal deposit or redemption the way it prices an on-chain swap; both would have to
+wait behind the same queue the strategy itself is waiting on. That's a real cost to communicate
+to depositors before it ships, not after.</p>
+
+<div class="note">
+  <span class="tag">Note</span>
+  <p>None of this is scheduled. It's here because the gap between "agent trades an AMM" and
+  "agent trades an order book" is a custody-model problem, not a feature-flag, and it's worth
+  thinking through in the open before it's a live contract instead of after.</p>
+</div>
+""")
+
+
 page("contracts", "Contracts",
      "Three contracts, deployed one registry per network and one vault/governor pair per fund.",
      "Reference", """
@@ -548,7 +609,7 @@ require(address(governor) == predicted, "governor address mismatch");</code></pr
 <h2 id="source">Source</h2>
 
 <p>Contracts live at
-<a href="https://github.com/recurveprotocol/recurve-protocol">recurveprotocol/recurve-protocol</a>,
+<a href="https://github.com/Recurve-Money/recurve-protocol">Recurve-Money/recurve-protocol</a>,
 licensed BUSL-1.1, built with Foundry against OpenZeppelin v5 on Solidity 0.8.28.</p>
 """)
 

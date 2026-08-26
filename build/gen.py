@@ -37,6 +37,9 @@ NAV = [
         ("contracts", "Contracts"),
         ("errors", "Errors"),
     ]),
+    ("Roadmap", [
+        ("perp-strategy", "Off-chain venues"),
+    ]),
 ]
 
 ORDER = [slug for _, items in NAV for slug, _ in items]
@@ -120,8 +123,8 @@ SHELL = """<!doctype html>
   </div>
   <div style="display:flex;align-items:center;gap:14px">
     <a class="sm muted" href="https://recurvemoney.xyz" style="font-size:15px">Website</a>
-    <a class="sm muted" href="https://github.com/recurveprotocol" style="font-size:15px">GitHub</a>
-    <a class="btn btn-dark btn-sm" href="https://recurvemoney.xyz/app">Open app</a>
+    <a class="sm muted" href="https://github.com/Recurve-Money" style="font-size:15px">GitHub</a>
+    <a class="btn btn-dark btn-sm" href="https://app.recurvemoney.xyz">Open app</a>
   </div>
 </header>
 
